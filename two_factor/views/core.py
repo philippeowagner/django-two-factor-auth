@@ -1,28 +1,45 @@
 from binascii import unhexlify
+from base64 import b32encode
 
 from django.conf import settings
 from django.contrib.auth import login as login, REDIRECT_FIELD_NAME
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.sites.models import get_current_site
+from django.core.urlresolvers import reverse
 from django.forms import Form
+from django.http import HttpResponse, Http404
 from django.shortcuts import redirect
 from django.views.decorators.cache import never_cache
+from django.views.decorators.debug import sensitive_post_parameters
 from django.views.generic import FormView, DeleteView, TemplateView
-from django_otp.decorators import otp_required
-from django_otp.plugins.otp_static.models import StaticToken
-from django_otp.util import random_hex
+from django.views.generic.base import View
 
-from ..compat import is_safe_url
+import django_otp
+from django_otp.decorators import otp_required
+from django_otp.plugins.otp_static.models import StaticToken, StaticDevice
+from django_otp.util import random_hex
+from two_factor import signals
+
+try:
+    from otp_yubikey.models import ValidationService, RemoteYubikeyDevice
+except ImportError:
+    ValidationService = RemoteYubikeyDevice = None
+
+import qrcode
+import qrcode.image.svg
+
+from ..compat import is_safe_url, import_by_path
 from ..forms import (MethodForm, TOTPDeviceForm, PhoneNumberMethodForm,
                      DeviceValidationForm, AuthenticationTokenForm,
-                     PhoneNumberForm, BackupTokenForm)
-from ..models import PhoneDevice
-from ..utils import (get_qr_url, default_device,
+                     PhoneNumberForm, BackupTokenForm, YubiKeyDeviceForm)
+from ..models import PhoneDevice, get_available_phone_methods
+from ..utils import (get_otpauth_url, default_device,
                      backup_phones)
 from .utils import (IdempotentSessionWizardView, class_view_decorator)
 
 
+@class_view_decorator(sensitive_post_parameters())
 @class_view_decorator(never_cache)
 class LoginView(IdempotentSessionWizardView):
     """
@@ -69,8 +86,10 @@ class LoginView(IdempotentSessionWizardView):
         The user can select a particular device to challenge, being the backup
         devices added to the account.
         """
+        # Generating a challenge doesn't require to validate the form.
         if 'challenge_device' in self.request.POST:
             return self.render_goto_step('token')
+
         return super(LoginView, self).post(*args, **kwargs)
 
     def done(self, form_list, **kwargs):
@@ -82,6 +101,11 @@ class LoginView(IdempotentSessionWizardView):
         redirect_to = self.request.GET.get(self.redirect_field_name, '')
         if not is_safe_url(url=redirect_to, host=self.request.get_host()):
             redirect_to = str(settings.LOGIN_REDIRECT_URL)
+
+        device = getattr(self.get_user(), 'otp_device', None)
+        if device:
+            signals.user_verified.send(sender=__name__, request=self.request,
+                                       user=self.get_user(), device=device)
         return redirect(redirect_to)
 
     def get_form_kwargs(self, step=None):
@@ -91,10 +115,11 @@ class LoginView(IdempotentSessionWizardView):
         if step in ('token', 'backup'):
             return {
                 'user': self.get_user(),
+                'initial_device': self.get_device(step),
             }
         return {}
 
-    def get_device(self):
+    def get_device(self, step=None):
         """
         Returns the OTP device selected by the user, or his default device.
         """
@@ -105,6 +130,11 @@ class LoginView(IdempotentSessionWizardView):
                     if device.persistent_id == challenge_device_id:
                         self.device_cache = device
                         break
+            if step == 'backup':
+                try:
+                    self.device_cache = self.get_user().staticdevice_set.get(name='backup')
+                except StaticDevice.DoesNotExist:
+                    pass
             if not self.device_cache:
                 self.device_cache = default_device(self.get_user())
         return self.device_cache
@@ -140,8 +170,8 @@ class LoginView(IdempotentSessionWizardView):
                 if phone != self.get_device()]
             try:
                 context['backup_tokens'] = self.get_user().staticdevice_set\
-                    .all()[0].token_set.count()
-            except:
+                    .get(name='backup').token_set.count()
+            except StaticDevice.DoesNotExist:
                 context['backup_tokens'] = 0
 
         context['cancel_url'] = settings.LOGOUT_URL
@@ -162,7 +192,10 @@ class SetupView(IdempotentSessionWizardView):
     is asked to provide a generated token. For call and sms methods, the user
     provides the phone number which is then validated in the final step.
     """
+    redirect_url = 'two_factor:setup_complete'
+    qrcode_url = 'two_factor:qr'
     template_name = 'two_factor/core/setup.html'
+    session_key_name = 'django_two_factor-qr_secret_key'
     initial_dict = {}
     form_list = (
         ('welcome', Form),
@@ -171,12 +204,17 @@ class SetupView(IdempotentSessionWizardView):
         ('sms', PhoneNumberForm),
         ('call', PhoneNumberForm),
         ('validation', DeviceValidationForm),
+        ('yubikey', YubiKeyDeviceForm),
     )
     condition_dict = {
         'generator': lambda self: self.get_method() == 'generator',
         'call': lambda self: self.get_method() == 'call',
         'sms': lambda self: self.get_method() == 'sms',
         'validation': lambda self: self.get_method() in ('sms', 'call'),
+        'yubikey': lambda self: self.get_method() == 'yubikey',
+    }
+    idempotent_dict = {
+        'yubikey': False,
     }
 
     def get_method(self):
@@ -188,7 +226,7 @@ class SetupView(IdempotentSessionWizardView):
         Start the setup wizard. Redirect if already enabled.
         """
         if default_device(self.request.user):
-            return redirect('two_factor:setup_complete')
+            return redirect(self.redirect_url)
         return super(SetupView, self).get(request, *args, **kwargs)
 
     def render_next_step(self, form, **kwargs):
@@ -206,15 +244,19 @@ class SetupView(IdempotentSessionWizardView):
         """
         # TOTPDeviceForm
         if self.get_method() == 'generator':
-            for form in form_list:
-                if callable(getattr(form, 'save', None)):
-                    form.save()
+            form = [form for form in form_list if isinstance(form, TOTPDeviceForm)][0]
+            device = form.save()
 
-        # PhoneNumberForm
-        if self.get_method() in ('call', 'sms'):
-            self.get_device(user=self.request.user, name='default').save()
+        # PhoneNumberForm / YubiKeyDeviceForm
+        elif self.get_method() in ('call', 'sms', 'yubikey'):
+            device = self.get_device()
+            device.save()
 
-        return redirect('two_factor:setup_complete')
+        else:
+            raise NotImplementedError("Unknown method '%s'" % self.get_method())
+
+        django_otp.login(self.request, device)
+        return redirect(self.redirect_url)
 
     def get_form_kwargs(self, step=None):
         kwargs = {}
@@ -223,7 +265,7 @@ class SetupView(IdempotentSessionWizardView):
                 'key': self.get_key(step),
                 'user': self.request.user,
             })
-        if step == 'validation':
+        if step in ('validation', 'yubikey'):
             kwargs.update({
                 'device': self.get_device()
             })
@@ -242,10 +284,25 @@ class SetupView(IdempotentSessionWizardView):
         """
         method = self.get_method()
         kwargs = kwargs or {}
-        kwargs['method'] = method
-        kwargs['number'] = self.storage.validated_step_data\
-            .get(method, {}).get('number')
-        return PhoneDevice(key=self.get_key(method), **kwargs)
+        kwargs['name'] = 'default'
+        kwargs['user'] = self.request.user
+
+        if method in ('call', 'sms'):
+            kwargs['method'] = method
+            kwargs['number'] = self.storage.validated_step_data\
+                .get(method, {}).get('number')
+            return PhoneDevice(key=self.get_key(method), **kwargs)
+
+        if method == 'yubikey':
+            kwargs['public_id'] = self.storage.validated_step_data\
+                .get('yubikey', {}).get('token', '')[:-32]
+            try:
+                kwargs['service'] = ValidationService.objects.get(name='default')
+            except ValidationService.DoesNotExist:
+                raise KeyError("No ValidationService found with name 'default'")
+            except ValidationService.MultipleObjectsReturned:
+                raise KeyError("Multiple ValidationService found with name 'default'")
+            return RemoteYubikeyDevice(**kwargs)
 
     def get_key(self, step):
         self.storage.extra_data.setdefault('keys', {})
@@ -258,11 +315,12 @@ class SetupView(IdempotentSessionWizardView):
     def get_context_data(self, form, **kwargs):
         context = super(SetupView, self).get_context_data(form, **kwargs)
         if self.steps.current == 'generator':
-            alias = '%s@%s' % (self.request.user.username,
-                               get_current_site(self.request).name)
-            key = unhexlify(self.get_key('generator').encode('ascii'))
+            key = self.get_key('generator')
+            rawkey = unhexlify(key.encode('ascii'))
+            b32key = b32encode(rawkey).decode('utf-8')
+            self.request.session[self.session_key_name] = b32key
             context.update({
-                'QR_URL': get_qr_url(alias, key)
+                'QR_URL': reverse(self.qrcode_url)
             })
         elif self.steps.current == 'validation':
             context['device'] = self.get_device()
@@ -292,6 +350,7 @@ class BackupTokensView(FormView):
     a pillow ;-).
     """
     form_class = Form
+    redirect_url = 'two_factor:backup_tokens'
     template_name = 'two_factor/core/backup_tokens.html'
     number_of_tokens = 10
 
@@ -312,7 +371,7 @@ class BackupTokensView(FormView):
         for n in range(self.number_of_tokens):
             device.token_set.create(token=StaticToken.random_token())
 
-        return redirect('two_factor:backup_tokens')
+        return redirect(self.redirect_url)
 
 
 @class_view_decorator(never_cache)
@@ -327,6 +386,7 @@ class PhoneSetupView(IdempotentSessionWizardView):
     numbers can be used for verification.
     """
     template_name = 'two_factor/core/phone_register.html'
+    redirect_url = None
     form_list = (
         ('setup', PhoneNumberMethodForm),
         ('validation', DeviceValidationForm),
@@ -338,7 +398,7 @@ class PhoneSetupView(IdempotentSessionWizardView):
         Store the device and redirect to profile page.
         """
         self.get_device(user=self.request.user, name='backup').save()
-        return redirect(str(settings.LOGIN_REDIRECT_URL))
+        return redirect(self.redirect_url or str(settings.LOGIN_REDIRECT_URL))
 
     def render_next_step(self, form, **kwargs):
         """
@@ -369,7 +429,7 @@ class PhoneSetupView(IdempotentSessionWizardView):
         """
         The key is preserved between steps and stored as ascii in the session.
         """
-        if not self.key_name in self.storage.extra_data:
+        if self.key_name not in self.storage.extra_data:
             key = random_hex(20).decode('ascii')
             self.storage.extra_data[self.key_name] = key
         return self.storage.extra_data[self.key_name]
@@ -393,9 +453,58 @@ class PhoneDeleteView(DeleteView):
 
 
 @class_view_decorator(never_cache)
-@class_view_decorator(login_required)
+@class_view_decorator(otp_required)
 class SetupCompleteView(TemplateView):
     """
     View congratulation the user when OTP setup has completed.
     """
     template_name = 'two_factor/core/setup_complete.html'
+
+    def get_context_data(self):
+        return {
+            'phone_methods': get_available_phone_methods(),
+        }
+
+
+@class_view_decorator(never_cache)
+@class_view_decorator(login_required)
+class QRGeneratorView(View):
+    """
+    View returns an SVG image with the OTP token information
+    """
+    http_method_names = ['get']
+    default_qr_factory = 'qrcode.image.svg.SvgPathImage'
+    session_key_name = 'django_two_factor-qr_secret_key'
+
+    # The qrcode library only supports PNG and SVG for now
+    image_content_types = {
+        'PNG': 'image/png',
+        'SVG': 'image/svg+xml; charset=utf-8',
+    }
+
+    def get(self, request, *args, **kwargs):
+        # Get the data from the session
+        try:
+            key = self.request.session[self.session_key_name]
+            del self.request.session[self.session_key_name]
+        except KeyError:
+            raise Http404()
+
+        # Get data for qrcode
+        image_factory_string = getattr(settings, 'TWO_FACTOR_QR_FACTORY', self.default_qr_factory)
+        image_factory = import_by_path(image_factory_string)
+        content_type = self.image_content_types[image_factory.kind]
+        try:
+            username = self.request.user.get_username()
+        except AttributeError:
+            username = self.request.user.username
+
+        site_name = get_current_site(self.request).name
+        alias = '{site_name}:{username}'.format(
+            username=username, site_name=site_name)
+
+        # Make and return QR code
+        img = qrcode.make(get_otpauth_url(alias, key, site_name), image_factory=image_factory)
+        resp = HttpResponse(content_type=content_type)
+        img.save(resp)
+        return resp

@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.contrib.admin import AdminSite
 from django.contrib.auth import REDIRECT_FIELD_NAME
+from django.core.urlresolvers import reverse
 from django.shortcuts import redirect
 
 from .utils import monkeypatch_method
@@ -33,9 +34,13 @@ class AdminSiteOTPRequiredMixin(object):
         """
         Redirects to the site login page for the given HttpRequest.
         """
+        if REDIRECT_FIELD_NAME in request.GET:
+            url = request.GET[REDIRECT_FIELD_NAME]
+        else:
+            url = request.get_full_path()
         return redirect('%s?%s' % (
-            settings.LOGIN_URL,
-            urlencode({REDIRECT_FIELD_NAME: request.get_full_path()})
+            reverse('two_factor:login'),
+            urlencode({REDIRECT_FIELD_NAME: url})
         ))
 
 
@@ -52,9 +57,13 @@ def patch_admin():
         """
         Redirects to the site login page for the given HttpRequest.
         """
+        if REDIRECT_FIELD_NAME in request.GET:
+            url = request.GET[REDIRECT_FIELD_NAME]
+        else:
+            url = request.get_full_path()
         return redirect('%s?%s' % (
-            settings.LOGIN_URL,
-            urlencode({REDIRECT_FIELD_NAME: request.get_full_path()})
+            reverse('two_factor:login'),
+            urlencode({REDIRECT_FIELD_NAME: url})
         ))
 
 

@@ -3,7 +3,7 @@ TARGET?=tests
 .PHONY: flake8 example test coverage
 
 flake8:
-	flake8 two_factor example tests
+	flake8 --ignore=W999 two_factor example tests
 
 example:
 	DJANGO_SETTINGS_MODULE=example.settings PYTHONPATH=. \
@@ -18,11 +18,12 @@ coverage:
 	DJANGO_SETTINGS_MODULE=tests.settings PYTHONPATH=. \
 		coverage run --branch --source=two_factor \
 		`which django-admin.py` test ${TARGET}
+	coverage combine
 	coverage html
 	coverage report
 
 tx-pull:
-	tx pull -a --minimum-perc=90
+	tx pull -a
 	cd two_factor; django-admin.py compilemessages
 	cd example; django-admin.py compilemessages
 

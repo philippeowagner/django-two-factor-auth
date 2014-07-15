@@ -4,14 +4,14 @@
 # 
 # Translators:
 # Translators:
-# KuwaitNET, 2013-2014
+# Bashar Al-Abdulhadi, 2013-2014
 msgid ""
 msgstr ""
 "Project-Id-Version: django-two-factor-auth\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-01-13 08:01+0100\n"
-"PO-Revision-Date: 2014-01-14 16:55+0000\n"
-"Last-Translator: KuwaitNET\n"
+"POT-Creation-Date: 2014-05-20 22:44+0200\n"
+"PO-Revision-Date: 2014-06-01 16:10+0000\n"
+"Last-Translator: Bashar Al-Abdulhadi\n"
 "Language-Team: Arabic (http://www.transifex.com/projects/p/django-two-factor-auth/language/ar/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -19,63 +19,95 @@ msgstr ""
 "Language: ar\n"
 "Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
 
-#: forms.py:15 forms.py:25
+#: forms.py:21 forms.py:31
 msgid "Method"
 msgstr "الطريقة"
 
-#: forms.py:43 forms.py:57 forms.py:110
+#: forms.py:49 forms.py:79 forms.py:132 forms.py:157
 msgid "Token"
 msgstr "رمز التفويض"
 
-#: forms.py:52
-msgid "Entered token is not valid"
-msgstr "رمز التفويض المدخل غير صحيح"
+#: forms.py:52 forms.py:82
+msgid "Entered token is not valid."
+msgstr "رمز التفويض الذي تم إدخاله غير صحيح."
 
-#: forms.py:60
-msgid "Please enter a valid token."
-msgstr "الرجاء إدخال رمز تفويض صالح"
+#: forms.py:67 forms.py:149 models.py:46
+msgid "YubiKey"
+msgstr "YubiKey"
 
-#: forms.py:106
+#: forms.py:70
+msgid "The YubiKey could not be verified."
+msgstr "لم يتمكن التحقق من مفتاح YubiKey."
+
+#: forms.py:128
 msgid "Yes, I am sure"
 msgstr "نعم, أنا متأكد"
 
-#: models.py:18
+#: models.py:24
 msgid ""
 "Please enter a valid phone number, including your country code starting with"
 " + or 00."
 msgstr "يرجى إدخال رقم هاتف صحيح، بما في ذلك رمز البلد الخاص بدءا بـ + أو 00."
 
-#: models.py:23 models.py:31
+#: models.py:29
 msgid "Phone Call"
 msgstr "مكالمة هاتفية"
 
-#: models.py:24 models.py:33
+#: models.py:30
 msgid "Text Message"
 msgstr "رسالة نصية"
 
-#: models.py:38
+#: models.py:37
+msgid "Phone call"
+msgstr "مكالمة هاتفية"
+
+#: models.py:39
+msgid "Text message"
+msgstr "رسالة نصية"
+
+#: models.py:51
 msgid "Token generator"
 msgstr "منشئ رمز التفويض"
 
-#: models.py:52
+#: models.py:66
 msgid "number"
 msgstr "الرقم"
 
-#: models.py:58
+#: models.py:72
 msgid "method"
 msgstr "الطريقة"
 
-#: gateways/twilio.py:56
+#: gateways/twilio/gateway.py:54
 #, python-format
 msgid "Your authentication token is %s"
 msgstr "رمز التفويض الخاص بك هو %s"
 
 #. Translators: twilio_locale should be a locale supported by
 #. Twilio, see http://bit.ly/187I5cr
-#: gateways/twilio.py:65 views/twilio.py:45
+#: gateways/twilio/gateway.py:63 gateways/twilio/views.py:73
 msgctxt "twilio_locale"
 msgid "en"
 msgstr "الإنجليزية"
+
+#. Translators: should be a language supported by Twilio,
+#. see http://bit.ly/187I5cr
+#: gateways/twilio/views.py:38
+#, python-format
+msgid "Hi, this is %(site_name)s calling. Press any key to continue."
+msgstr "Hi, this is %(site_name)s calling. Press any key to continue."
+
+#. Translators: should be a language supported by Twilio,
+#. see http://bit.ly/187I5cr
+#: gateways/twilio/views.py:43
+#, python-format
+msgid "Your token is %(token)s. Repeat: %(token)s. Good bye."
+msgstr "Your token is %(token)s. Repeat: %(token)s. Good bye."
+
+#. Translators: should be a language supported by Twilio,
+#. see http://bit.ly/187I5cr
+#: gateways/twilio/views.py:47
+msgid "You didn't press any keys. Good bye."
+msgstr "You didn't press any keys. Good bye."
 
 #: templates/two_factor/_wizard_actions.html:4
 msgid "Cancel"
@@ -91,7 +123,7 @@ msgid "Next"
 msgstr "التالي"
 
 #: templates/two_factor/core/backup_tokens.html:5
-#: templates/two_factor/profile/profile.html:33
+#: templates/two_factor/profile/profile.html:35
 msgid "Backup Tokens"
 msgstr "رموز تفويض إحتياطية"
 
@@ -148,9 +180,24 @@ msgid ""
 "        generator."
 msgstr "الرجاء إدخال رمز التفويض الذي تم إنشاؤه من خلال تطبيق إنشاء رموز\n التفويض."
 
-#: templates/two_factor/core/login.html:29
+#: templates/two_factor/core/login.html:21
+msgid ""
+"Use this form for entering backup tokens for logging in.\n"
+"      These tokens have been generated for you to print and keep safe. Please\n"
+"      enter one of these backup tokens to login to your account."
+msgstr "استخدم هذه نموذج لإدخال رمز التفويض الاحتياطي لتسجيل الدخول.\n      رموز التفويض هذه تم إنشاؤها ليتم طباعتها و الاحتفاظ بها بمكان آمن. الرجاء إدخال أحد رموز التفويض الإحتياطية للدخول لحسابك."
+
+#: templates/two_factor/core/login.html:33
 msgid "Or, alternatively, use one of your backup phones:"
 msgstr "أو، بدلا من ذلك، استخدم أحد هواتفك الإحتياطية:"
+
+#: templates/two_factor/core/login.html:43
+msgid "As a last resort, you can use a backup token:"
+msgstr "كملاذ أخير، يمكنك استخدام رمز تفويض احتياطي:"
+
+#: templates/two_factor/core/login.html:46
+msgid "Use Backup Token"
+msgstr "استخدم رمز تفويض إحتياطي"
 
 #: templates/two_factor/core/otp_required.html:5
 msgid "Permission Denied"
@@ -177,7 +224,7 @@ msgstr "الرجوع"
 #: templates/two_factor/core/otp_required.html:18
 #: templates/two_factor/core/setup.html:5
 #: templates/two_factor/core/setup_complete.html:5
-#: templates/two_factor/profile/profile.html:56
+#: templates/two_factor/profile/profile.html:58
 msgid "Enable Two-Factor Authentication"
 msgstr "تفعيل خاصية التحقق من خطوتين"
 
@@ -232,15 +279,35 @@ msgid ""
 "      This number will be validated in the next step. "
 msgstr "الرجاء إدخال رقم الهاتف الذي ترغب بإستلام\nالمكالمة عليه. سيتم التحقق من الرقم بالخطوة التالية."
 
+#: templates/two_factor/core/setup.html:35
+msgid ""
+"To identify and verify your YubiKey, please insert a\n"
+"      token in the field below. Your YubiKey will be linked to your\n"
+"      account."
+msgstr "ليتم التعرف و التحقق من مفتاح YubiKey الخاص بك, الرجاء أدخل\n      رمز تفويض في الحقل أدناه. مفتاح YubiKey الخاص بك سيتم ربطة\n      بحسابك."
+
 #: templates/two_factor/core/setup_complete.html:7
 msgid ""
-"Congratulations, you've successfully enabled\n"
-"    two-factor authentication."
-msgstr "تهانينا, تم تفعيل خاصية التحقق من\nخطوتين بنجاح."
+"Congratulations, you've successfully enabled two-factor\n"
+"      authentication."
+msgstr "تهانينا, لقد قمت بتفعيل خاصية التحقق من خطوتين \n      بنجاح."
 
-#: templates/two_factor/core/setup_complete.html:11
-msgid "Back to profile"
+#: templates/two_factor/core/setup_complete.html:12
+#: templates/two_factor/core/setup_complete.html:19
+msgid "Back to Profile"
 msgstr "الرجوع للملف الشخصي"
+
+#: templates/two_factor/core/setup_complete.html:14
+msgid ""
+"However, it might happen that you don't have access to\n"
+"      your primary token device. To enable account recovery, add a phone \n"
+"      number."
+msgstr "ومع ذلك، قد لا تتمكن من الوصول للجهاز الذي ينشئ رمز التفويض \nالخاص بك. لتفعيل خاصية إسترداد الحساب، أضف رقم\nهاتف."
+
+#: templates/two_factor/core/setup_complete.html:21
+#: templates/two_factor/profile/profile.html:33
+msgid "Add Phone Number"
+msgstr "أضف رقم هاتف"
 
 #: templates/two_factor/profile/disable.html:5
 msgid "Disable Two-factor Authentication"
@@ -261,39 +328,39 @@ msgid "Account Security"
 msgstr "أمان الحساب"
 
 #: templates/two_factor/profile/profile.html:9
+msgid "Tokens will be generated by your token generator."
+msgstr "رموز التفويض سيتم إنشاؤها عبر تطبيق إنشاء رموز التفويض."
+
+#: templates/two_factor/profile/profile.html:11
 #, python-format
 msgid "Primary method: %(primary)s"
 msgstr "الطريقة الأساسية: %(primary)s"
 
-#: templates/two_factor/profile/profile.html:11
-msgid "Tokens will be generated by your token generator."
-msgstr "رموز التفويض سيتم إنشاؤها عبر تطبيق إنشاء رموز التفويض."
+#: templates/two_factor/profile/profile.html:13
+msgid "Tokens will be generated by your YubiKey."
+msgstr "رموز التفويض سيتم إنشاؤها بإستخدام مفتاح YubiKey الخاص بك."
 
-#: templates/two_factor/profile/profile.html:14
+#: templates/two_factor/profile/profile.html:16
 msgid "Backup Phone Numbers"
 msgstr "أرقام هواتف إحتياطية"
 
-#: templates/two_factor/profile/profile.html:15
+#: templates/two_factor/profile/profile.html:17
 msgid ""
 "If your primary method is not available, we are able to\n"
 "      send backup tokens to the phone numbers listed below."
 msgstr "في حال عدم توافر الطريقة الأساسية, يمكننا\nإرسال رموز التفويض الإحتياطية للأرقام المدرجة أدناه."
 
-#: templates/two_factor/profile/profile.html:25
+#: templates/two_factor/profile/profile.html:27
 msgid "Unregister"
 msgstr "إلغاء"
 
-#: templates/two_factor/profile/profile.html:31
-msgid "Add Phone Number"
-msgstr "أضف رقم هاتف"
-
-#: templates/two_factor/profile/profile.html:35
+#: templates/two_factor/profile/profile.html:37
 msgid ""
 "If you don't have any device with you, you can access\n"
 "        your account using backup tokens."
 msgstr "إذا لم يكن لديك أي جهاز معك، يمكنك الوصول إلى\nحسابك باستخدام رموز التفويض الاحتياطية."
 
-#: templates/two_factor/profile/profile.html:37
+#: templates/two_factor/profile/profile.html:39
 #, python-format
 msgid ""
 "\n"
@@ -310,22 +377,22 @@ msgstr[3] "\n        لديك بعض رموز التفويض الإحتياطي�
 msgstr[4] "\n        لديك %(counter)s رمز تفويض إحتياطي متبقي.\n      "
 msgstr[5] "\n        لديك %(counter)s رمز تفويض إحتياطي متبقي.\n      "
 
-#: templates/two_factor/profile/profile.html:44
+#: templates/two_factor/profile/profile.html:46
 msgid "Show Codes"
 msgstr "عرض رموز التفويض"
 
-#: templates/two_factor/profile/profile.html:46
-#: templates/two_factor/profile/profile.html:50
+#: templates/two_factor/profile/profile.html:48
+#: templates/two_factor/profile/profile.html:52
 msgid "Disable Two-Factor Authentication"
 msgstr "تعطيل خاصية التحقق من خطوتين"
 
-#: templates/two_factor/profile/profile.html:47
+#: templates/two_factor/profile/profile.html:49
 msgid ""
 "However we strongly discourage you to do so, you can\n"
 "      also disable two-factor authentication for your account."
 msgstr "ولكن نحن بقوة لا نشجعك بأن تفعل ذلك, يمكنك\nأيضا تعطيل خاصية التحقق من خطوتين لحسابك."
 
-#: templates/two_factor/profile/profile.html:52
+#: templates/two_factor/profile/profile.html:54
 msgid ""
 "Two-factor authentication is not enabled for your\n"
 "      account. Enable two-factor authentication for enhanced account\n"
@@ -342,11 +409,5 @@ msgstr "أرسل رسالة لـ %s"
 msgid "Call number %s"
 msgstr "أتصل بالرقم %s"
 
-#. Translators: should be a language supported by Twilio,
-#. see http://bit.ly/187I5cr
-#: views/twilio.py:25
-#, python-format
-msgid ""
-"Hi, this is %(site_name)s calling. Please enter the following code on your "
-"screen: %(token)s. Repeat: %(token)s."
-msgstr "Hi, this is %(site_name)s calling. Please enter the following code on your screen: %(token)s. Repeat: %(token)s."
+#~ msgid "Please enter a valid token."
+#~ msgstr "Please enter a valid token."

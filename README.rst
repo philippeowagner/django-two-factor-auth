@@ -18,8 +18,9 @@ Complete Two-Factor Authentication for Django. Built on top of the one-time
 password framework django-otp_ and Django's built-in authentication framework
 ``django.contrib.auth`` for providing the easiest integration into most Django
 projects. Inspired by the user experience of Google's Two-Step Authentication,
-allowing users to authenticate through call, text messages (SMS) or by using a
-token generator app like Google Authenticator.
+allowing users to authenticate through call, text messages (SMS), by using a
+token generator app like Google Authenticator or a YubiKey_ hardware token
+generator (optional).
 
 I would love to hear your feedback on this package. If you run into
 problems, please file an issue on GitHub, or contribute to the project by
@@ -33,8 +34,8 @@ django-user-sessions_ for providing Django sessions with a foreign key to the
 user. Although the package is optional, it improves account security control
 over ``django.contrib.sessions``.
 
-Compatible with Django 1.4, 1.5 and 1.6 on Python 2.6, 2.7, 3.2 and 3.3.
-Documentation is available at `readthedocs.org`_.
+Compatible with Django 1.4, 1.5, 1.6 and 1.7 on Python 2.6, 2.7, 3.2, 3.3 and
+3.4. Documentation is available at `readthedocs.org`_.
 
 Installation
 ============
@@ -80,6 +81,9 @@ Be sure to remove any other login routes, otherwise the two-factor
 authentication might be circumvented. The admin interface should be
 automatically patched to use the new login method.
 
+Support for YubiKey_ is disabled by default, but enabling is easy. Please
+refer to the documentation for instructions.
+
 Contribute
 ==========
 * Submit issues to the `issue tracker`_ on Github
@@ -104,7 +108,6 @@ For Python compatibility, tox_ is used. You can run the full test suite with::
 
     tox
 
-
 See Also
 ========
 Have a look at django-user-sessions_ for Django sessions with a foreign key to
@@ -124,3 +127,6 @@ The project is licensed under the MIT license.
 .. _issue tracker: https://github.com/Bouke/django-two-factor-auth/issues
 .. _source code: https://github.com/Bouke/django-two-factor-auth
 .. _readthedocs.org: http://django-two-factor-auth.readthedocs.org/
+.. _Yubikey: https://www.yubico.com/products/yubikey-hardware/
+.. _`Hynek's Sharing Your Labor of Love: PyPI Quick And Dirty`:
+   https://hynek.me/articles/sharing-your-labor-of-love-pypi-quick-and-dirty/

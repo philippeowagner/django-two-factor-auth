@@ -15,7 +15,7 @@ General Settings
   Which gateway to use for making phone calls. Should be set to a module or
   object providing a ``make_call`` method. Currently two gateways are bundled:
 
-  * ``two_factor.gateways.twilio.Twilio`` for making real phone calls using
+  * ``two_factor.gateways.twilio.gateway.Twilio`` for making real phone calls using
     Twilio_.
   * ``two_factor.gateways.fake.Fake``  for development, recording tokens to the
     default logger.
@@ -24,7 +24,7 @@ General Settings
   Which gateway to use for sending text messages. Should be set to a module or
   object providing a ``send_sms`` method. Currently two gateways are bundled:
 
-  * ``two_factor.gateways.twilio.Twilio`` for sending real text messages using
+  * ``two_factor.gateways.twilio.gateway.Twilio`` for sending real text messages using
     Twilio_.
   * ``two_factor.gateways.fake.Fake``  for development, recording tokens to the
     default logger.
@@ -42,13 +42,36 @@ General Settings
 
   See also LOGIN_REDIRECT_URL_.
 
+``TWO_FACTOR_QR_FACTORY``
+  The default generator for the QR code images is set to SVG. This
+  does not require any further dependencies, however it does not work
+  on IE8 and below. If you have PIL, Pillow or pyimaging installed
+  you may wish to use PNG images instead.
+
+  * ``qrcode.image.pil.PilImage`` may be used for PIL/Pillow
+  * ``qrcode.image.pure.PymagingImage`` may be used for pyimaging
+  
+  For more QR factories that are available see python-qrcode_.
+
 Twilio Gateway
 --------------
 To use the Twilio gateway, you need first to install the `Twilio client`_::
 
     pip install twilio
 
-.. autoclass:: two_factor.gateways.twilio.Twilio
+Next, you also need to include the Twilio urlpatterns. As these urlpatterns are
+all defined using a single Django namespace, these should be joined with the
+base urlpatterns, like so::
+
+    # urls.py
+    from two_factor.urls import urlpatterns as tf_urls
+    from two_factor.gateways.twilio.urls import urlpatterns as tf_twilio_urls
+
+    urlpatterns = patterns('',
+        url(r'', include(tf_urls + tf_twilio_urls, 'two_factor')),
+    )
+
+.. autoclass:: two_factor.gateways.twilio.gateway.Twilio
 
 Fake Gateway
 ------------
@@ -58,3 +81,4 @@ Fake Gateway
 .. _LOGIN_REDIRECT_URL: https://docs.djangoproject.com/en/dev/ref/settings/#login-redirect-url
 .. _Twilio: http://www.twilio.com/
 .. _`Twilio client`: https://pypi.python.org/pypi/twilio
+.. _python-qrcode: https://pypi.python.org/pypi/qrcode

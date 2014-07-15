@@ -1,11 +1,11 @@
-from base64 import b32encode
 from two_factor.models import PhoneDevice
 
-try:
-    from urllib.parse import urlencode
-except ImportError:
-    from urllib import urlencode
 from django_otp import devices_for_user
+
+try:
+    from urllib.parse import quote, urlencode
+except ImportError:
+    from urllib import quote, urlencode
 
 
 def default_device(user):
@@ -22,18 +22,15 @@ def backup_phones(user):
     return user.phonedevice_set.filter(name='backup')
 
 
-def get_otpauth_url(alias, key):
-    b32_key = b32encode(key)
-    return 'otpauth://totp/%s?secret=%s' % (alias, b32_key.decode('ascii'))
-
-
-def get_qr_url(alias, seed):
-    return "https://chart.googleapis.com/chart?" + urlencode({
-        "chs": "200x200",
-        "chld": "M|0",
-        "cht": "qr",
-        "chl": get_otpauth_url(alias, seed)
-    })
+def get_otpauth_url(accountname, secret, issuer=None):
+    # For a complete run-through of all the parameters, have a look at the
+    # specs at:
+    # https://code.google.com/p/google-authenticator/wiki/KeyUriFormat
+    label = quote('%s: %s' % (issuer, accountname) if issuer else accountname)
+    query = {'secret': secret}
+    if issuer:
+        query['issuer'] = issuer
+    return 'otpauth://totp/%s?%s' % (label, urlencode(query))
 
 
 # from http://mail.python.org/pipermail/python-dev/2008-January/076194.html
